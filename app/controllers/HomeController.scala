@@ -21,4 +21,9 @@ class HomeController @Inject()(val controllerComponents: ControllerComponents) e
   def index() = Action { implicit request: Request[AnyContent] =>
     Ok(views.html.index())
   }
+
+  def printSum(first: Long, second: Long) = Action { implicit request: Request[AnyContent] =>
+    val sum = first + second
+    Ok(views.html.numbersum(sum))
+  }
 }
