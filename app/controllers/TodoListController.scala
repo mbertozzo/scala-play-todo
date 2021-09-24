@@ -10,7 +10,7 @@ import play.api.libs.json._
 import scala.collection.mutable
 
 @Singleton
-class TodoListController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
+class TodoListController @Inject()(val controllerComponents: ControllerComponents) extends BaseController with Logging {
  private val todoList = new mutable.ListBuffer[TodoListItem] ()
   todoList += TodoListItem(1, "test", true)
   todoList += TodoListItem(2, "some other value", false)
@@ -19,6 +19,8 @@ class TodoListController @Inject()(val controllerComponents: ControllerComponent
   implicit val newTodoListJson = Json.format[NewTodoListItem]
 
   def getAll(): Action[AnyContent] = Action {
+    logger.info("Received request for all todos")
+
     if (todoList.isEmpty) {
       NoContent
     } else {
@@ -27,6 +29,8 @@ class TodoListController @Inject()(val controllerComponents: ControllerComponent
   }
 
   def getById(itemId: Long): Action[AnyContent] = Action {
+    logger.info(s"Received request for todo with id: $itemId")
+
     val foundItem = todoList.find(_.id == itemId)
 
     foundItem match {
@@ -36,12 +40,16 @@ class TodoListController @Inject()(val controllerComponents: ControllerComponent
   }
 
   def addNewItem(): Action[AnyContent] = Action { implicit request =>
+
     val content = request.body
     val jsonObject = content.asJson
     val todoListItem: Option[NewTodoListItem] =
       jsonObject.flatMap(
         Json.fromJson[NewTodoListItem](_).asOpt
       )
+
+    val input = jsonObject.getOrElse("")
+    logger.info(s"Received request to add todo: $input")
 
     todoListItem match {
       case Some(newItem) =>
@@ -56,6 +64,7 @@ class TodoListController @Inject()(val controllerComponents: ControllerComponent
   }
 
   def markAsDone(itemId: Long) = Action {
+    logger.info(s"Received request to mark as done todo with id: $itemId")
     val foundItemIndex = todoList.indexWhere(_.id == itemId)
 
     foundItemIndex match {
@@ -67,7 +76,7 @@ class TodoListController @Inject()(val controllerComponents: ControllerComponent
 
         val updatedItem = todoList(foundItemIndex).copy(isItDone = true)
         todoList.update(foundItemIndex, updatedItem)
-        Ok(Json.toJson(todoList))
+        Ok(Json.toJson(updatedItem))
       case _ => BadRequest
     }
   }
