@@ -7,5 +7,7 @@
 GET     /                           controllers.HomeController.index()
 GET     /sum/:first/:second         controllers.HomeController.printSum(first: Long, second: Long)
 
+GET     /todo                       controllers.TodoListController.getAll
+
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
