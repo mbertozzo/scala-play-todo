@@ -80,4 +80,9 @@ class TodoListController @Inject()(val controllerComponents: ControllerComponent
       case _ => BadRequest
     }
   }
+
+  def deleteAllDone(): Action[AnyContent] = Action {
+    todoList.filterInPlace(_.isItDone == false)
+    Ok(Json.toJson(todoList))
+  }
 }
