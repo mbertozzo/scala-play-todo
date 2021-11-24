@@ -1,37 +1,79 @@
 package models
 
+import com.google.inject.Inject
 import play.api.data.Form
-import play.api.data.Forms.{email, longNumber, mapping, nonEmptyText}
+import play.api.data.Forms.{boolean, mapping, nonEmptyText}
+import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
+import slick.jdbc.JdbcProfile
+import slick.jdbc.MySQLProfile.api._
 
-case class User(id: Long, firstName: String, lastName: String, mobile: Long, email: String)
+import scala.concurrent.{ExecutionContext, Future}
 
-case class UserFormData(firstName: String, lastName: String, mobile: Long, email: String)
+
+case class User(id: Long, name: String, surname: String, isAdmin: Boolean)
+
+case class UserFormData(name: String, surname: String, isAdmin: Boolean)
 
 object UserForm {
   val form = Form(
     mapping(
-      "firstName" -> nonEmptyText,
-      "lastName" -> nonEmptyText,
-      "mobile" -> longNumber,
-      "email" -> email,
+      "name" -> nonEmptyText,
+      "surname" -> nonEmptyText,
+      "isAdmin" -> boolean,
     )(UserFormData.apply)(UserFormData.unapply)
   )
 }
 
-object Users {
-  var users: Seq[User] = Seq()
+class UserTableDef(tag: Tag) extends Table[User](tag, "user") {
+  def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
 
-  def add(user: User): String = {
-    users = users :+ user.copy(id = users.length)
+  def name = column[String]("name")
+
+  def surname = column[String]("surname")
+
+  def isAdmin = column[Boolean]("isAdmin")
+
+  override def * = (id, name, surname, isAdmin) <> (User.tupled, User.unapply)
+}
+
+class UserList @Inject()(
+                          protected val dbConfigProvider: DatabaseConfigProvider
+                        )(implicit executionContext: ExecutionContext)
+  extends HasDatabaseConfigProvider[JdbcProfile] {
+
+  var userList = TableQuery[UserTableDef]
+
+  def add(userItem: User): Future[String] = {
+    dbConfig.db
+      .run(userList += userItem)
+      .map(res => "User successfully added")
+      .recover { case ex: Exception => {
+        printf(ex.getMessage())
+        ex.getMessage
+      }
+    }
   }
 
-  def delete(id:Long): Option[Int] = {
-    val originalSize = users.length
-    users = users.filterNot(_.id == id)
-    Some(originalSize - users.length)
+  def delete(id: Long): Future[Int] = {
+    dbConfig.db.run(userList.filter(_.id === id).delete)
   }
 
-  def get(id: Long): Option[User] = users.find(_.id == id)
+  def update(userItem: User): Future[Int] = {
+    dbConfig.db
+      .run(
+        userList
+          .filter(_.id === userItem.id)
+          .map(x => (x.name, x.surname, x.isAdmin))
+          .update(userItem.name, userItem.surname, userItem.isAdmin)
+      )
+  }
 
-  def listAll: Seq[User] = users
+  def get(id: Long): Future[Option[User]] = {
+    dbConfig.db.run(userList.filter(_.id === id).result.headOption)
+  }
+
+  def getAll: Future[Seq[User]] = {
+    dbConfig.db.run(userList.result)
+  }
+
 }
